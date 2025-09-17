@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat em Tempo Real</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f0f0; margin: 0; padding: 0; }
+    #chat { max-width: 600px; margin: 20px auto; background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    #messages { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+    .notification { color: gray; font-style: italic; }
+    .message { margin: 5px 0; }
+    .user { font-weight: bold; color: #2c3e50; }
+    input { width: 80%; padding: 8px; }
+    button { padding: 8px 12px; background: #3498db; color: white; border: none; cursor: pointer; }
+    button:hover { background: #2980b9; }
+  </style>
+</head>
+<body>
+  <div id="chat">
+    <h2>💬 Chat em Tempo Real</h2>
+    <div id="messages"></div>
+    <input id="messageInput" type="text" placeholder="Digite sua mensagem..." />
+    <button id="sendBtn">Enviar</button>
+  </div>
+
+  <script>
+    const ws = new WebSocket(`ws://${window.location.host}`);
+    const messagesDiv = document.getElementById("messages");
+    const input = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    let username = "";
+
+    while (!username) {
+      username = prompt("Digite seu nome de usuário:");
+    }
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ type: "join", user: username }));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "history") {
+        data.data.forEach((m) => addMessage(m.user, m.text));
+      }
+
+      if (data.type === "message") {
+        addMessage(data.user, data.text);
+      }
+
+      if (data.type === "notification") {
+        addNotification(data.text);
+      }
+    };
+
+    function addMessage(user, text) {
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.innerHTML = `<span class="user">${user}:</span> ${text}`;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function addNotification(text) {
+      const div = document.createElement("div");
+      div.classList.add("notification");
+      div.textContent = text;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    sendBtn.onclick = sendMessage;
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    function sendMessage() {
+      const text = input.value.trim();
+      if (text) {
+        ws.send(JSON.stringify({ type: "message", text }));
+        input.value = "";
+      }
+    }
+  </script>
+</body>
+</html>
